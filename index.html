@@ -1,0 +1,703 @@
+<!--
+ * @Author: your name
+ * @Date: 2021-10-02 09:42:11
+ * @LastEditTime: 2021-10-06 16:03:28
+ * @LastEditors: Please set LastEditors
+ * @Description: In User Settings Edit
+ * @FilePath: \张卓_js_泡泡龙\hw_2021.10.2.html
+-->
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game</title>
+  <link rel="stylesheet" href="css/reset.css">
+  <style>
+
+    html,
+    body {
+      height: 100%;
+    }
+    
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .bccc {
+      border: 1px solid #ccc;
+    }
+
+    .flex1 {
+      flex: 1;
+    }
+
+    .container {
+      display: flex;
+      width: 700px;
+      height: 500px;
+      box-shadow: 0 0 8px 0 #666;
+      min-width: 400px;
+      min-height: 300px;
+    }
+
+    .game-area {
+      display: flex;
+      flex-direction: column;
+      width: 480px;
+      height: 100%;
+    }
+
+    .exert-area {
+      position: relative;
+      height: 80%;
+      cursor: crosshair;
+    }
+
+    .information-area {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .start-game {
+      user-select: none;
+      width: 60%;
+      line-height: 260%;
+      border-radius: 4px;
+      color: cornsilk;
+      font-size: medium;
+      text-align: center;
+      font-weight: bolder;
+      background-color: rgb(110, 110, 230);
+      box-shadow: 0 4px 2px 0 rgb(95, 95, 136); 
+      cursor: pointer;
+    }
+
+    .information-area p {
+      user-select: none;
+      font-size: 200%;
+      line-height: 300%;
+      color: rgb(189, 156, 27);
+    }
+
+    .information-area span {
+      user-select: none;
+      line-height: 0;
+      font-size: xx-large;
+      font-weight: bold;
+      color: orchid;
+    }
+
+    .ball {
+      display: none;
+      user-select: none;
+      position: absolute;
+      line-height: 40px;
+      border-radius: 50%;
+      text-align: center;
+      color: #fff;
+      box-shadow: -2px -2px 12px rgba(100, 100, 100, .7) inset;
+    }
+
+    .shooter {
+      position: absolute;
+      width: 60px;
+      height: 86px;
+      background: url(img/arrow.png) no-repeat top/cover;
+      transform-origin: 31px 56px;
+    }
+
+    .oball {
+      display: none;
+      user-select: none;
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      box-shadow: -2px -2px 12px rgba(100, 100, 100, .7) inset;
+    }
+    
+    ul {
+      position: absolute;
+      left: 50%;
+      bottom: 30px;
+      transform: translateX(-50%);
+    }
+
+    ul li {
+      font-size: 22px;
+      padding-bottom: 5px;
+      color: #666;
+    }
+    ul li label {
+      padding-right: 6px;
+    }
+
+    .time {
+      font-size: 30px;
+      font-weight: bolder;
+      color: red;
+      padding-top: 100px;
+      padding-bottom: 30px;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="game-area">
+      <div class="exert-area bccc">
+        <div class="shooter"></div>
+        <div class="oball"></div>
+      </div>
+      <div class="shoot-area bccc flex1">
+      </div>
+    </div>
+    <div class="information-area bccc flex1">
+      <div class="time">0秒</div>
+      <div class="start-game">开始游戏</div>
+      <p>当前分数</p>
+      <span>0</span>
+      <ul>
+        <li><label for="easy">简单</label><input type="radio" name="dif" id="easy" checked></li>
+        <li><label for="medium">中等</label><input type="radio" name="dif" id="medium"></li>
+        <li><label for="difficult">困难</label><input type="radio" name="dif" id="difficult"></li>
+        <li><label for="eval">地狱</label><input type="radio" name="dif" id="eval"></li>
+      </ul>
+    </div>
+  </div>
+
+  <script src="js/common.js"></script>
+  <script>
+    const ballsData = [];
+    const oContainer = $(".container"),
+    oGameArea = $(".game-area"),
+    oExertArea = $(".exert-area"),
+    oShooter = $(".shooter"),
+    oBall = $(".oball"),
+    oStart = $(".start-game"),
+    oSpan = $("span"),
+    oTime = $(".time"),
+    aInput = $$("input");
+    
+    const maxW = oExertArea.offsetWidth, 
+    maxH = oExertArea.offsetHeight,
+    R = 40, 
+    maxRows = ~~(maxW / R), 
+    maxColumn = ~~(maxH / R);
+
+    let counter = 0;
+    let tog = true;
+    let timer;                                        //添加小球的计时器序号,放在全局下便于清除
+    let level = {"easy": 3, "medium": 5, "difficult" : 8, "eval" : 11};
+        
+    init();
+    initBall();
+    initShooter();
+
+    /**
+     * @description: 创建初始化函数,向容器中添加小球
+     * @param {*}
+     * @return {*}
+     * @Date: 2021-10-02 10:56:13
+     */    
+    function init() {
+      let idx = 0;
+      let fragment = document.createDocumentFragment();   //忘记,加强记忆
+      for (let i = 0; i < maxColumn; i++) {
+        let even = i % 2;
+        for (let j = 0; j < maxRows - even; j++) {
+          let ele = document.createElement("div");
+          ele.classList.add("ball");
+          let top = i * R - 5.5 * i;
+          let left = j * R + even * R / 2;
+          let color = generateColor();
+          let ballArray = new Proxy({top, left, color, ele, connect: false, idx},{
+            set(obj, prop, value) {
+              if (prop === "connect" && value === false) {
+                drop(obj.ele);
+                counter++;
+              }
+              obj[prop] = value;     // <== 忘记写会造成属性设置不上
+            }
+          });
+          ballsData.push(ballArray);
+          fragment.append(ele);
+          idx++;
+        }
+      }
+      oExertArea.append(fragment);
+    }
+
+    /**
+     * @description: 初始化shooter
+     * @param {*}
+     * @return {*}
+     * @Date: 2021-10-04 16:20:12
+     */    
+    function initShooter() {
+      setStyle(oShooter, {
+        left: oExertArea.offsetWidth / 2  - oShooter.offsetWidth / 2 + "px",
+        top: oExertArea.offsetHeight - 31 + "px",
+      }) 
+    }
+
+    /**
+     * @description: 初始化小球
+     * @param {*}
+     * @return {*}
+     * @Date: 2021-10-04 16:20:12
+     */  
+    function initBall() {
+      let color = generateColor();
+      oBall.style.cssText = "";
+      oBall.color = color;
+      setStyle(oBall, {
+        display: "block",
+        backgroundColor: color,
+        top: (oExertArea.offsetHeight + 6) + "px",
+        left: (oExertArea.offsetWidth / 2 - R / 2) + "px",
+      })
+    }
+    
+    oExertArea.addEventListener("mousedown",() => {
+      if (tog || oBall.tog === false) {                               //保证发射的小球在获取到碰撞对象后才能触发下一次事件
+        return false;
+      }
+      tog = true;
+      let timer;
+      let speed = speedx = 25;
+      let x = oBall.offsetLeft, y = oBall.offsetTop;
+      let rotate = Number(oShooter.style.transform?.match(/\((.+)rad\)/)[1]);
+      clearInterval(timer);
+      timer = setInterval(() => {
+        if (x < 0 || x > (oExertArea.offsetWidth - R)) {
+          speedx *= -1;
+        }
+        let collideball = isCollide({x, y});
+        if (collideball.length > 0) {
+          let idx = shortDistance(collideball);
+          let target = findspace(idx, {x, y});
+          specialEffects(target);
+          clearInterval(timer);
+          tog = false;
+          return false;
+        }
+        x += speedx * Math.sin(rotate);
+        y -= speed * Math.cos(rotate);
+        oBall.style.left = x + "px";
+        oBall.style.top = y + "px";
+      }, 1000 / 60)
+    })
+
+    /**
+     * @description: shooter移动
+     * @param {*}
+     * @return {*}
+     * @Date: 2021-10-04 16:41:11
+     */    
+    oExertArea.addEventListener("mousemove", (e) => {
+      let posi = getposition(oShooter);
+      let x = posi.left, y = posi.top, X = e.clientX, Y = e.clientY;
+      let rotate = Math.atan2(Y - y - 56, X - x - 31) + Math.PI / 2;
+      // let rotate = Math.atan((x + 31 - X) / (Y - y - 56));    //方法2
+      oShooter.style.transform = `rotate(${rotate}rad)`;
+    },false)
+
+    /**
+     * @description: 点击重新开始游戏
+     * @param {*}
+     * @return {*}
+     * @Date: 2021-10-05 21:32:50
+     */  
+    let gameTimer;
+    oStart.addEventListener("click", () => {
+      let dif = level[checked(aInput)];
+      reset(addBalls(dif));
+      oBall.tog = true;                                            //点击开始游戏后给发射球解锁,使其能够触发事件
+      let T = 0;
+      gameTimer = setInterval(() => {
+        oTime.innerText = T + "秒";
+        T++;
+      },1000);
+    } ,false);
+
+    /**
+     * @description: 获取被选中的难度
+     * @param {*} ele
+     * @return {*}
+     * @Date: 2021-10-06 14:15:51
+     */    
+    function checked(ele) {
+      return Array.prototype.filter.call(ele, item => item.checked)[0].id;
+    }
+
+    /**
+     * @description: 重置游戏
+     * @param {*}
+     * @return {*}
+     * @Date: 2021-10-05 23:10:46
+     */    
+    function reset(addBalls) {
+      tog = false;
+      ballsData.filter(item => item.connect === true).forEach(item => {
+        item.connect = false;
+        item.ele.style.cssText = '';   
+      })
+      counter = 0;
+      oSpan.innerText = 0;
+      oBall.tog = false;                                             //给发射球加锁,如果锁上了,则无法触发事件
+      addBalls && addBalls();
+      clearInterval(gameTimer);
+      oTime.innerText = "0秒";
+    }
+    
+    /**
+     * @description: 添加鼠标移入和移出效果
+     * @param {*}
+     * @return {*}
+     * @Date: 2021-10-05 21:33:05
+     */    
+    oStart.addEventListener("mouseenter",() => {
+      setStyle(oStart, {
+        backgroundColor: "rgb(96, 96, 224)"
+      });
+    },false)
+
+    oStart.addEventListener("mouseleave",() => {
+      setStyle(oStart, {
+        backgroundColor: "rgb(110, 110, 230)"
+      });
+    },false)
+
+    //检测触发机制可行性
+    // oExertArea.addEventListener("click",(e) => {
+    //   let idx;
+    //   if (e.target.className === "ball") {
+    //     idx = Number(e.target.innerText);
+    //   }
+    //   chains(idx, true).forEach((item) => {
+    //     ballsData[item].connect = false;
+    //   });
+    //   unconnectArray().forEach(item => {
+    //     ballsData[item].connect = false;
+    //   });
+    // },false);
+
+
+    /**
+     * @description: 设置自动添加小球的样式
+     * @param {Array} 需要添加的小球下标数组
+     * @return {*}
+     * @Date: 2021-10-05 22:03:50
+     */    
+    function display(arr = []) {
+      arr.forEach(item => {
+        let target = ballsData[item];
+        target.connect = true;
+        target.color = generateColor();
+        target.ele.style.cssText = ''; 
+        setStyle(target.ele, {
+          display: "block",
+          top: target.top + "px",
+          left: target.left + "px",
+          width: R + "px",
+          height: R + "px",
+          backgroundColor: target.color
+        });
+      })
+    }
+
+    /**
+     * @description: 自动添加小球
+     * @param {Number} maxNum 添加的小球数
+     * @param {Number} time 添加时间间隔
+     * @return {} 
+     * @Date: 2021-10-05 22:01:30
+     */    
+    function addBalls(maxNum = 10, time = 3000) {
+      clearInterval(timer);
+      timer = setInterval(() => {
+        let addball = [];
+        let num = 0;
+        let i = 0;
+        while(num < maxNum) {
+          if (ballsData[i].connect === false) {
+            addball.push(i);
+            num++;
+          }
+          i++;
+          // console.log(i, ballsData[i], ballsData[i].ele.style.cssText);
+          if (i === ballsData.length) {
+            display(addball);
+            alert(`游戏结束,你得了${counter}分,点击确定重新开始`);
+            clearInterval(timer);
+            reset();
+            initBall();
+            return false;
+          }
+        }
+        display(addball);
+      }, time)
+    }
+
+    /**
+     * @description: 判断球的碰撞(与其他球和顶边)
+     * @param {*} x,y 
+     * @return {Array} 相撞的球或者到达顶边后距离最近的球组成的数组
+     * @Date: 2021-10-04 19:55:56
+     */    
+    function isCollide({x = 0, y = 0} = {}) {
+      let collideball = ballsData.filter(item => item.connect);
+      collideball = isCollideBalls(collideball, {x, y});
+      //到达顶边还未检测到与其他球相撞
+      if (collideball.length === 0 && y < R / 2) {
+        let theNearestball = ballsData.slice(0, maxRows).reduce((acc, curr) => {
+          if (Math.abs(acc.left - x) >= Math.abs(curr.left - x)) {
+            acc = curr;
+          }
+          return acc;
+        });
+        collideball[0] = {
+          distance: 0,
+          idx: theNearestball.idx
+        }
+      }
+      return collideball;
+    }
+
+    /**
+     * @description: 寻找与发射球相撞的球
+     * @param {Array} collideball 存放着处于连接状态的球的数组
+     * @param {Number} x oball.offsetLeft
+     * @param {Number} y oball.offsetTop
+     * @return {Array} 一个包含所有相撞对象下标和距离的数组
+     * @Date: 2021-10-05 15:57:29
+     */    
+    function isCollideBalls(collideball, {x, y} = {}) {
+      if (collideball.length === 0) {
+        return [];
+      }
+      return collideball.map(curr => {
+        let distance = Math.hypot(curr.left - x, curr.top - y);
+        if (distance > R) {
+          return null;
+        }
+        return {
+          distance,
+          idx: curr.idx
+        }
+      }).filter(item => item !== null)
+    }
+
+    /**
+     * @description: 计算所有相撞小球中距离最近的一个
+     * @param {Array} collideball
+     * @return {Number} 最近小球的下标
+     * @Date: 2021-10-05 16:02:20
+     */    
+    function shortDistance(collideball = []) {
+      return collideball.sort((a, b) => a.distance - b.distance)[0]?.idx;
+    }
+
+    /**
+     * @description: 根据下标寻找兄弟中未连接且距离idx最近的位置
+     * @param {Number} idx 目标球下标
+     * @return {Number} 最近且未连接的小球下标
+     * @Date: 2021-10-05 16:20:22
+     */    
+    function findspace(idx, { x = 0, y = 0 } = {}) {
+      if (!ballsData[idx].connect) {
+        return idx;
+      }
+      //先判断相撞的球是不是未连接的,如果是未连接,则说明该球是发射球达到顶部后获取的最近球
+      let borther = Object.entries(isBrother(idx)).map(([key, value])=> value).filter(item => (ballsData[item]?.connect === false)).map(item => ballsData[item]);
+      return shortDistance(isCollideBalls(borther, {x, y}));
+    }
+
+    /**
+     * @description: 设置撞击后的特效
+     * @param {Number} idx 撞击球的下标
+     * @return {*}
+     * @Date: 2021-10-05 16:43:55
+     */    
+    function specialEffects(idx) {
+      if (idx === undefined) {
+        clearInterval(timer);
+        alert(`游戏结束,你得了${counter}分,点击确定重新开始`);
+        reset();
+        initBall();
+        return false;
+      }
+      changeTarget(idx);
+      let chainsball = chains(idx, true);
+      if (chainsball.length >= 3) {
+        chainsball.forEach(curr => ballsData[curr].connect = false);
+        unconnectArray().forEach(curr => ballsData[curr].connect = false);
+      }
+      oSpan.innerText = counter;
+      initBall();
+    }
+
+    /**
+     * @description: 该表目标球的存在状态
+     * @param {*}
+     * @return {*}
+     * @Date: 2021-10-05 16:52:49
+     */    
+    function changeTarget(idx) {
+
+      let target = ballsData[idx];
+      target.connect = true;
+      target.color = oBall.color || generateColor();
+      setStyle(target.ele, {
+        display: "block",
+        top: target.top + "px",
+        left: target.left + "px",
+        width: R + "px",
+        height: R + "px",
+        backgroundColor: oBall.color
+      });
+    }
+    
+    /**
+     * @description: 实现掉落效果
+     * @param {Object} 实现掉落效果的对象
+     * @return {*}
+     * @Date: 2021-10-04 15:02:12
+     */    
+    function drop(ele) {
+      animate({
+        ele,
+        styleJson: {
+          top: ele.offsetTop + 40 + 'px',
+          opacity: 0,
+          transform: 'scale(.5)'
+        },
+        callback() {
+          ele.style.cssText = '';  
+          //ele.style.cssText = '';  删除样式    
+          setStyle(ele, {
+            display: 'none'
+          })
+        }
+      }) ;
+    }
+
+    /**
+     * @description: 返回一个不连接在根节点上的数组,包含球的下标
+     * @param {*}
+     * @return {Array} 球的下标组成的数组
+     * @Date: 2021-10-03 21:17:59
+     */    
+    function unconnectArray() {
+      let unConnect = [];
+      for (let i = 0; i < ballsData.length; i++) {
+        if(ballsData[i].connect) {
+          let tog = chains(i).some(ele => ele < maxRows);
+          if (!tog) unConnect.push(i);
+        }
+      }
+      return unConnect;
+    }
+
+    /**
+     * @description: 获取一条同色链
+     * @param {Number} idx触发对象的下标
+     * @return {Array} 同色链上球的下标数组
+     * @Date: 2021-10-02 22:36:40
+     */    
+    function chains(idx, color = false) {
+      let thesame = [idx];
+      getChain(idx, thesame);
+      function getChain(idx, arr) {
+        let colorArry = isthesame(idx, color);
+        if (colorArry.length == 0) {
+          return false; 
+        }
+        colorArry.forEach((item) => {
+          if (arr.indexOf(item) === -1) {
+            arr.push(item);
+            getChain(item, arr); 
+          }
+        });
+      }
+      return thesame;
+    }
+
+    /**
+     * @description: 获取与单个球相连的球
+     * @param {Number} idx
+     * @param {Number} maxRows
+     * @return {Array} 相连同色球下标数组
+     * @Date: 2021-10-02 20:24:26
+     */    
+    function isthesame(idx, color = false) {
+      let borther = isBrother(idx);    //获取相连接的球下标组成的对象
+      return Object.entries(borther).map(([key, value]) => value).filter((curr) => {
+        if (!ballsData[curr]) {
+          return false;
+        }
+        let flag = ballsData[curr].connect === true;
+        if (color) {
+          return flag && ballsData[curr].color === ballsData[idx].color;
+        }
+        return flag;
+      });
+    }
+
+    /**
+     * @description: 判断一个球是否与选中球相连
+     * @param {Number} 中心球的下标
+     * @param {Object} 需要判断的对象的下标组成的一个对象
+     * @return {Object} 实际相连球组成的新对象
+     * @Date: 2021-10-02 17:23:25
+     */    
+    function isBrother(idx = 0) {
+      let top = ballsData[idx].top;
+      let left = ballsData[idx].left;
+      return Object.entries(getBrother(idx)).reduce((acc,[key,value],index) => {
+          acc[key] = (ballsData[value] 
+          && (ballsData[value].top <= top + R) 
+          && (ballsData[value].top >= top - R) 
+          && (ballsData[value].left <= left + R) 
+          && (ballsData[value].left >= left - R))? value : null;
+          return acc;
+      },{});
+    }
+
+    /**
+     * @description: 获取被选中对象的周围6个对象
+     * @param {Number} idx
+     * @param {Number} maxRows单行所含球的最大数目
+     * @return {Object} 6个对象下标
+     * @Date: 2021-10-02 16:38:14
+     */    
+    function getBrother(idx) {
+      return {tl: idx - maxRows,
+        tr: idx - maxRows + 1,
+        ml: idx - 1,
+        mr: idx + 1,
+        bl: idx + maxRows - 1,
+        br: idx + maxRows}
+    }
+
+    /**
+     * @description: 随机生成一个已提供数组中的颜色
+     * @param {*}
+     * @return {string} 返回一个颜色字符串用于设置背景颜色属性
+     * @Date: 2021-10-02 16:23:55
+     */    
+    function generateColor() {
+      const colorArray = ['#fa5a5a', '#f0d264', '#82c8a0', '#7fccde', '#6698cb', '#cb99c5'];
+      return colorArray[~~(Math.random() * 6)];
+    }
+    
+  </script>
+</body>
+</html>
